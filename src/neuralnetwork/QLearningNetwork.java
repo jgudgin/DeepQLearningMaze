@@ -19,8 +19,9 @@ public class QLearningNetwork {
 
         //hidden layers
         hidden = new Layer[hiddenSizes.length];
-        for (int i = 0; i < hiddenSizes.length - 1; i++) {
-            hidden[i] = new Hidden(hiddenSizes[i], hiddenSizes[i + 1]);
+        hidden[0] = new Hidden(inputSize, hiddenSizes[0]);
+        for (int i = 1; i < hiddenSizes.length - 1; i++) {
+            hidden[i] = new Hidden(hiddenSizes[i - 1], hiddenSizes[i]);
         }
 
         //output layer
