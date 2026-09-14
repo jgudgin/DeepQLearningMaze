@@ -76,6 +76,8 @@ public class Agent {
         //check if the next state is valid
         if (isNextActionValid) {
 
+            State previousState = currentState;
+
             //update the current state to the new valid state
             currentState = getCurrentState().getNextState(action);
 
@@ -87,7 +89,8 @@ public class Agent {
             double reward = calculateReward(action);
 
             //create a new experience
-            Experience experience = new Experience(currentState, action, reward, currentState);
+            // TODO comment needed: why the experience stores previousState as its current state and currentState as its next state, since Q-learning learns from (s, a, r, s') where s is the position the agent acted from
+            Experience experience = new Experience(previousState, action, reward, currentState);
             experienceReplay.addExperience(experience);
 
             //update the total reward

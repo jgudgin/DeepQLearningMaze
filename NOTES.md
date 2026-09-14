@@ -69,6 +69,12 @@
 - Reason: deep Q-learning regresses the network output onto the Q-learning target and applies the learning rate once, through gradient descent. The blended target scaled every step by `alpha` a second time, so at 0.1 each step was 10 times smaller than intended. A learning rate of 0.01 keeps the step size training used before this change.
 - Consequence: `tools/GradientCheckProbe.java` checks the gradient of `1/2 * (Q - r)^2` for a terminal experience. `tools/TrainingDirectionProbe.java` checks direction at learning rate 0.001 and reports 0.01 and 0.1.
 
+### 2026-09-15: Experiences store the state before and after the move
+
+- Decision: `Agent.move` keeps the state it acted from as `previousState` and stores `new Experience(previousState, action, reward, currentState)`.
+- Reason: Q-learning learns from `(s, a, r, s')`, where `s` is the position the agent acted from and `s'` is the position the action led to. The agent stored the position after the move as both states, so the network trained on the wrong state-action pair.
+- Consequence: `tools/ExperienceStateProbe.java` makes two moves and checks both states of each stored experience.
+
 ## Known bugs
 
 Entries marked (unverified) come from reading the code. The others were confirmed by running it.
@@ -76,7 +82,6 @@ Entries marked (unverified) come from reading the code. The others were confirme
 ### Training
 
 - At the agent's learning rate of 0.01, training steps can jump past their target. `tools/TrainingDirectionProbe.java` reports this at 0.01 and 0.1 without failing. In its latest run, 9 of 200 networks at 0.01 and 54 of 200 at 0.1 ended farther from a target of 10 after 20 steps, and every one had crossed the target. At 0.001, none did. The unscaled coordinate inputs probably make the steps larger. (cause unverified)
-- `Agent.move` stores the state after the move as both the current and the next state of each experience.
 - Training never treats the goal as a terminal state. (unverified)
 
 ### Policy and rewards
@@ -89,7 +94,7 @@ Entries marked (unverified) come from reading the code. The others were confirme
 
 - `ExperienceReplay.addExperience` checks for duplicates with `Experience.equals`, which `Experience` does not override. The check never matches.
 - `ExperienceReplay.addExperience` replaces a random entry when the buffer is full. Its comment says it replaces the oldest. (unverified)
-- `MazeApp.startGameLoop` resets the agent's `State` object in place at the end of an episode. This rewrites the state stored in the last experience.
+- `MazeApp.startGameLoop` resets the agent's `State` object in place at the end of an episode. That object is the next state of the episode's last experience, so the reset rewrites that next state to the start position. (which state gets rewritten is unverified)
 
 ### Maze and app
 
