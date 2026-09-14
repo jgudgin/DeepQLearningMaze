@@ -1,7 +1,8 @@
 package neuralnetwork;
 
-import java.util.Map;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 
 //state object holding information about the agents current co-ordinates and surroundings
 //includes method for getting the next state after an action
@@ -10,17 +11,14 @@ public class State {
     private int x;
     private int y;
     private Map<Action, Surrounding> surroundings; //maps each action to either WALL or PATH
-
-    public static final int NORTH = 0;
-    public static final int SOUTH = 1;
-    public static final int EAST = 2;
-    public static final int WEST = 3;
+    private MazeApp maze;
 
     //constructor for the coordinates and the surroundings
-    public State(int x, int y, int[][] maze) {
+    public State(int x, int y, MazeApp maze) {
         this.x = x;
         this.y = y;
-        this.surroundings = getSurroundings(x, y, maze);
+        this.maze = maze;
+        this.surroundings = new HashMap<>();
     }
 
     public enum Surrounding {
@@ -40,24 +38,51 @@ public class State {
         return surroundings;
     }
 
-    //checks if a certain direction is a path or not
+    public void updateSurroundings(int[][] maze, int x, int y) {
+        surroundings.clear(); // Clear previous surroundings
+
+        //check for each direction and update surroundings based on the maze structure
+        if (y > 0 && maze[y - 1][x] == 0) { //north
+            surroundings.put(Action.NORTH, Surrounding.PATH);
+        } else {
+            surroundings.put(Action.NORTH, Surrounding.WALL);
+        }
+
+        if (y < maze.length - 1 && maze[y + 1][x] == 0) { //south
+            surroundings.put(Action.SOUTH, Surrounding.PATH);
+        } else {
+            surroundings.put(Action.SOUTH, Surrounding.WALL);
+        }
+
+        if (x < maze[0].length - 1 && maze[y][x + 1] == 0) { //east
+            surroundings.put(Action.EAST, Surrounding.PATH);
+        } else {
+            surroundings.put(Action.EAST, Surrounding.WALL);
+        }
+
+        if (x > 0 && maze[y][x - 1] == 0) { //west
+            surroundings.put(Action.WEST, Surrounding.PATH);
+        } else {
+            surroundings.put(Action.WEST, Surrounding.WALL);
+        }
+    }
+
+    //check if certain direction is path
     public boolean isPath(Action action) {
         return surroundings.get(action) == Surrounding.PATH;
     }
 
     //get the next state based on the action
-    public State getNextState(Action action, int[][] maze) {
+    public State getNextState(Action action) {
         if (!isPath(action)) {
-            return null;    //return null is the directions is a wall
+            return null;
         }
 
         //calculate new position
-        int newX = x + action.getDeltaRow();
-        int newY = y + action.getDeltaCol();
+        int newX = x + action.getDeltaCol();
+        int newY = y + action.getDeltaRow();
 
-        //create new state with updated surroundings
         return new State(newX, newY, maze);
-
     }
 
     //method for encoding State coordinates and Action direction values into an array
@@ -72,23 +97,45 @@ public class State {
         return combinedInput;
     }
 
-    public static Map<Action, Surrounding> getSurroundings(int x, int y, int[][] maze) {
-        Map<Action, Surrounding> surroundings = new HashMap<>();
+    //check how many directions are blocked based on the current state
+    public int countBlockedDirections() {
+        int count = 0;
 
-        // Check each direction
-        if (x > 0) { // North
-            surroundings.put(Action.NORTH, maze[x - 1][y] == 1 ? Surrounding.WALL : Surrounding.PATH);
-        }
-        if (x < maze.length - 1) { // South
-            surroundings.put(Action.SOUTH, maze[x + 1][y] == 1 ? Surrounding.WALL : Surrounding.PATH);
-        }
-        if (y > 0) { // West
-            surroundings.put(Action.WEST, maze[x][y - 1] == 1 ? Surrounding.WALL : Surrounding.PATH);
-        }
-        if (y < maze[0].length - 1) { // East
-            surroundings.put(Action.EAST, maze[x][y + 1] == 1 ? Surrounding.WALL : Surrounding.PATH);
+        //check each direction
+        for (Action action : Action.values()) {
+            if (!isPath(action)) {
+                count++;
+            }
         }
 
-        return surroundings;
+        return count;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+
+        State state = (State) obj;
+        return x == state.x && y == state.y && surroundings.equals(state.surroundings);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(x, y, surroundings);
+    }
+
+    @Override
+    public String toString() {
+        return "\nx = " + this.getX() + "\ny = " + this.getY();
+    }
+    
+    public void setCurrentState(int x, int y){
+        this.x = x;
+        this.y = y;
     }
 }

@@ -17,7 +17,6 @@ public class EpsilonSoft {
         this.random = new Random();
     }
 
-    //
     public Action selectAction(double[] qValues, List<Action> actions) {
         //choose to explore
         if (random.nextDouble() < epsilon) {
@@ -55,12 +54,15 @@ public class EpsilonSoft {
     private Action selectActionFromProbs(double[] probs, List<Action> actions) {
         double randomValue = Math.random();
         double cumulativeProb = 0.0;
+        
 
         //loop through the probabilites of each action
-        for (int i = 0; i < probs.length; i++) {
+        for (int i = 0; i < actions.size(); i++) {
 
             //accumulate the probability of the current action
             cumulativeProb += probs[i];
+            
+
 
             //use probabilistic action selection by comparing a random value to the cumulative probability
             if (randomValue <= cumulativeProb) {
@@ -70,6 +72,14 @@ public class EpsilonSoft {
 
         //if no action is selected (which should not happen) return the last action as a default
         return actions.get(actions.size() - 1);
+    }
+    
+    public void setEpsilon(double epsilon){
+        this.epsilon = epsilon;
+    }
+    
+    public double getEpsilon(){
+        return epsilon;
     }
 
 }

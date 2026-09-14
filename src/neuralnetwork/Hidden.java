@@ -49,4 +49,5 @@ public class Hidden extends Layer {
 
         return nextGradients;
     }
+   
 }
