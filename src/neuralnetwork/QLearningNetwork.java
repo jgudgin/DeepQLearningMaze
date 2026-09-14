@@ -1,5 +1,8 @@
 package neuralnetwork;
 
+import java.util.Arrays;
+import java.util.Scanner;
+
 public class QLearningNetwork {
 
     private Layer input;    //create input layer
@@ -7,6 +10,7 @@ public class QLearningNetwork {
     private Layer output;   //create output layer
     private double alpha;   //learning rate
     private double gamma;   //discount factor, reduces reward for every time step
+    private Scanner keyboard;
 
     //constructor for the network
     public QLearningNetwork(int inputSize, int outputSize, int[] hiddenSizes, double alpha, double gamma) {
@@ -19,9 +23,11 @@ public class QLearningNetwork {
 
         //hidden layers
         hidden = new Layer[hiddenSizes.length];
-        hidden[0] = new Hidden(inputSize, hiddenSizes[0]);
-        for (int i = 1; i < hiddenSizes.length - 1; i++) {
-            hidden[i] = new Hidden(hiddenSizes[i - 1], hiddenSizes[i]);
+        for (int i = 0; i < hiddenSizes.length; i++) {
+            int inputSizeForLayer = i == 0 ? inputSize : hiddenSizes[i - 1];
+            int outputSizeForLayer = hiddenSizes[i];
+
+            hidden[i] = new Hidden(inputSizeForLayer, outputSizeForLayer);
         }
 
         //output layer
@@ -33,8 +39,10 @@ public class QLearningNetwork {
     public double[] predict(Experience experience) {
         double[] inputs = experience.getCurrentState().convertToInput(experience.getAction()); //encode details for easier input and management
         double[] outputs = input.forward(inputs);   //forward encoded inputs
+        int i = 1;
         for (Layer layer : hidden) {
-            outputs = layer.forward(outputs);   //forward through hidden layers
+            outputs = layer.forward(outputs);   //forward through hidden layers, using the outputs of previous layer neurons as inputs for the new layer ones
+            i++;
         }
         return output.forward(outputs);     //return output through output layer with Q-value prediction
     }
@@ -44,59 +52,72 @@ public class QLearningNetwork {
     public void train(Experience experience) {
 
         //predict the current Q-values for current state-action pair
-        //Qt-1(s,a)
+        //Qt-1(s,a) 
+        //current predicted Q-values for calculating updated ones
         double[] qValuesCurrent = predict(experience);
+
+        //original for calculating error
+        double[] initialQValues = qValuesCurrent.clone();
 
         //predict the Q-values for the next state if it exists, otherwise initialize an array
         //those Q-values correspond to Q(s',a') for all possible actions a' in the next state
-        double[] qValuesNext = (experience.getNextState() != null) ? predict(experience) : new double[qValuesCurrent.length];
+        double[] qValuesNext = new double[qValuesCurrent.length];
+        if (experience.getNextState() != null) {
+
+            Experience nextExperience = new Experience(experience.getNextState(), experience.getAction(), experience.getRewardReceived(), experience.getNextState());
+            qValuesNext = predict(nextExperience);
+        } else {
+            Arrays.fill(qValuesNext, 0);
+        }
 
         //calculate maximum Q-value for the next state (s') across all possible actions (a')
         //maxa' * Q(s',a')
-        double maxQNext = Double.NEGATIVE_INFINITY;
-        for (double qValue : qValuesNext) {
-            if (qValue > maxQNext) {
-                maxQNext = qValue;
-            }
-        }
+        double maxQNext = Arrays.stream(qValuesNext).max().orElse(0);
 
         //calculate the target Q-value using Q-learning update formula
         //targetValue = R(s,a) + gamma * maxQNext
         double targetQValue = experience.getRewardReceived() + gamma * maxQNext;
+//        System.out.println("Target Q-value (R(s,a) + gamma * maxQNext): " + targetQValue);
 
         //update Q-value for current action in current state
         //update Qt(s,a) with: alpha * (targetQValue - Qt-1(s,a))
         int actionIndex = experience.getAction().index();
         qValuesCurrent[actionIndex] += (alpha * (targetQValue - qValuesCurrent[actionIndex]));
 
-        //backpropagate the updated Q-values through the neural network
-        backpropagate(experience, qValuesCurrent);
+        //backpropagate the updated Q-values through the neural network, using the predicted ones to calculate error
+        backpropagate(experience, qValuesCurrent, initialQValues);
+//        System.out.println("Backpropagation completed for experience: " + experience);
     }
 
-    public void backpropagate(Experience experience, double[] updatedQValues) {
+    public void backpropagate(Experience experience, double[] updatedQValues, double[] predictedQValues) {
         //convert state-action pair to one-hot encoded input before putting into neural network
         double[] stateInput = experience.getCurrentState().convertToInput(experience.getAction());
         double[] inputs = new double[stateInput.length];
 
-        System.arraycopy(stateInput, 0, inputs, 0, stateInput.length);
+        keyboard = new Scanner(System.in);
 
-        //calculate the output of the neural network (predicted Q-values)
-        //based on the current state action pair
-        double[] networkOutput = predict(experience);
+        //array to store the gradients of each neuron in a hidden layer
+        double[] nextLayerGradients = new double[0];
+
+        //array to store the gradients of each neuron in the output layer
+        double[] outputGradients = new double[0];
+
+        System.arraycopy(stateInput, 0, inputs, 0, stateInput.length);
 
         //calculate the error by finding the difference between the predicted and updated Q-values
         //the error is used to calculate the gradients for backpropagation
         double[] error = new double[updatedQValues.length];
         for (int i = 0; i < updatedQValues.length; i++) {
-            error[i] = updatedQValues[i] - networkOutput[i];
+            error[i] = updatedQValues[i] - predictedQValues[i];
         }
 
         //backpropagation through the output layer
         //calculate gradient for output layer: (∂L / ∂z) = error * σ'(z)
         //where z is the output of the neural network and σ'(z) is the derivative of ReLU activation function
-        double[] outputGradients = new double[networkOutput.length];
+        //create an array for each neuron in the output layer
+        outputGradients = new double[predictedQValues.length];
         for (int i = 0; i < outputGradients.length; i++) {
-            outputGradients[i] = error[i] * reluDerivative(networkOutput[i]);   //use the ReLU derivative to calculate the gradient
+            outputGradients[i] = error[i] * reluDerivative(predictedQValues[i]);   //use the ReLU derivative to calculate the gradient
         }
 
         //update output layer weights and biases using calculated
@@ -105,10 +126,21 @@ public class QLearningNetwork {
 
         //backpropagation through hidden layers
         //this is for calculating the gradients for weight updates
-        double[] nextGradients = outputGradients;
         for (int i = hidden.length - 1; i >= 0; i--) {
+
             Layer currentLayer = hidden[i];
-            double[] currentOutputs = (i == 0) ? inputs : hidden[i - 1].getOutputs();
+
+            //stores the gradients of the neurons on the next layer
+            //the array should be equal in size to the amount of neurons in the current hidden layer
+            nextLayerGradients = new double[currentLayer.getOutputSize()];
+
+            //represents the output values of neurons in the current layer
+            //when i == 0, currentOutputs is set to inputs
+            //for subsequent hidden layers i > 0, currentOutputs is set to the outputs of the 
+            //previous hidden layer (hidden[i - 1].getOutputs();)
+//            double[] currentOutputs = (i == hidden.length) ? inputs : hidden[i - 1].getOutputs();
+            double[] currentOutputs;
+            currentOutputs = hidden[i].getOutputs();
             double[] layerGradients = new double[currentLayer.getOutputSize()];
 
             //calcuate the gradients of each neuron in the current hidden layer l,
@@ -120,7 +152,7 @@ public class QLearningNetwork {
             for (int j = 0; j < layerGradients.length; j++) {
                 //calculate the gradient for each neuron in the current layer by using gradients
                 //from the next layer and the derivative of the ReLU activation func
-                layerGradients[j] = nextGradients[j] * reluDerivative(currentOutputs[j]);
+                layerGradients[j] = nextLayerGradients[j] * reluDerivative(currentOutputs[j]);
             }
 
             //update weights for the current layer using the calculated weight gradients
@@ -129,7 +161,7 @@ public class QLearningNetwork {
 
             //calculate next gradients for the previous layer using layer gradients calculated for current layer
             //this prepares for backpropagation to the previous layer
-            nextGradients = currentLayer.calcNextGradients(layerGradients);
+            nextLayerGradients = currentLayer.calcNextGradients(layerGradients);
         }
     }
 
@@ -160,5 +192,4 @@ public class QLearningNetwork {
 
         return weightGradients;
     }
-
 }

@@ -18,15 +18,17 @@ public class Output extends Layer {
         }
         return outputs;
     }
-    
+
     @Override
     public double[] calcNextGradients(double[] layerGradients) {
-        //the output layer computes the gradients based on the loss
         double[] gradients = new double[inputs.length];
-        for (int i = 0; i < gradients.length; i++){
-            gradients[i] = layerGradients[i] * inputs[i];
+        for (int i = 0; i < gradients.length; i++) {
+            gradients[i] = 0; //initialize gradients
+            for (int j = 0; j < outputs.length; j++) {
+                gradients[i] += layerGradients[j] * weights[i][j]; //backpropagate through weights
+            }
         }
-        
+
         return gradients;
     }
 }

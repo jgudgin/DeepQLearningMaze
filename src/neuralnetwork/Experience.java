@@ -4,7 +4,7 @@ package neuralnetwork;
 
 public class Experience {
     
-    private final State currentState, nextState; //the current given state and the next state, stored as coordinates in arrays
+    private State currentState, nextState; //the current given state and the next state, stored as coordinates in arrays
     private Action action, nextAction; //the current action about to be taken and the next action to be taken, stored as integers
     private double rewardReceived;  //the reward received from that action in that state
     
@@ -28,6 +28,10 @@ public class Experience {
     
     public void setRewardReceived(double rewardReceived){
         this.rewardReceived = rewardReceived;
+    }
+    
+    public void setCurrentState(State currentState){
+        this.currentState = currentState;
     }
     
 
