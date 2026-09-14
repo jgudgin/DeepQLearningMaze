@@ -53,6 +53,7 @@ public class Agent {
             Action candidate = actions.get(i);
             Experience query = new Experience(currentState, candidate, 0.0, null);
             double[] prediction = qLearningNetwork.predict(query);
+            // TODO comment needed: why the Q-value for this action is the output at candidate.index(), which is the output QLearningNetwork.train adjusts for that action
             values[i] = prediction[candidate.index()];
         }
         return values;

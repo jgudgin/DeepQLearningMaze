@@ -34,18 +34,28 @@ public class EpsilonSoft {
         double[] probs = new double[qValues.length];
         double sumExp = 0.0;
 
+        // TODO comment needed: why subtracting the largest Q-value keeps Math.exp from overflowing and leaves the probabilities unchanged
+        double maxQ = qValues[0];
+        for (double q : qValues) {
+            if (q > maxQ) {
+                maxQ = q;
+            }
+        }
+
+        // TODO comment needed: the formula comment below shows e^(Q(a)/τ), but the code now computes e^((Q(a) - maxQ)/τ)
         //calculate the exponentials using e^(Q(a)/τ from softmax equation
         //for each Q-value, the e function is computed and accumulated into sumExp
         //sumExp = ∑j e^(Q(aj) / τ​
         for (double q : qValues) {
-            sumExp += Math.exp(q / tau);
+            sumExp += Math.exp((q - maxQ) / tau);
         }
 
+        // TODO comment needed: the formula comment below shows e^(Q(a)/τ), but the code now computes e^((Q(a) - maxQ)/τ)
         //calculate probabilites
         //each actions prob is calulated by diving its exponential value by the sum of total exponentials
         //P(a|s) = (e^(Q(a) / τ) / (∑j e^(Q(aj) / τ)
         for (int i = 0; i < qValues.length; i++) {
-            probs[i] = Math.exp(qValues[i] / tau) / sumExp;
+            probs[i] = Math.exp((qValues[i] - maxQ) / tau) / sumExp;
         }
 
         return probs;

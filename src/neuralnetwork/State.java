@@ -79,6 +79,7 @@ public class State {
         }
 
         //calculate new position
+        // TODO comment needed: why x takes the column delta and y takes the row delta, since x is the maze column and y is the maze row
         int newX = x + action.getDeltaCol();
         int newY = y + action.getDeltaRow();
 

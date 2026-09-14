@@ -32,6 +32,7 @@ public enum Action {
         return ordinal();
     }
 
+    // TODO comment needed: why the one-hot position must follow the enum constant order, since reordering NORTH, SOUTH, EAST, WEST changes the network input
     public double[] convertToInput() {
         double[] encoding = new double[COUNT];
         encoding[index()] = 1.0;

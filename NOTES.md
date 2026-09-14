@@ -35,6 +35,12 @@
 
 - Decision: `development` was merged into `main`, and new work happens on `development`.
 
+### 2026-09-15: Softmax subtracts the largest Q-value
+
+- Decision: `EpsilonSoft.softmax` subtracts the largest Q-value from every Q-value before dividing by tau and calling `Math.exp`.
+- Reason: `Math.exp` overflows to Infinity above about 709 and underflows to 0 far below it. Either case turns the probabilities into NaN, and `selectActionFromProbs` then always returns the last action. The subtraction cancels in the softmax fraction, so the probabilities stay the same, and the largest term becomes e^0 = 1.
+- Consequence: `tools/SoftmaxProbe.java` checks the chosen-action shares against softmax values worked out by hand, including Q-values of 1000 and -1000.
+
 ## Known bugs
 
 Entries marked (unverified) come from reading the code. The others were confirmed by running it.
@@ -56,7 +62,7 @@ Entries marked (unverified) come from reading the code. The others were confirme
 
 ### Policy and rewards
 
-- `EpsilonSoft.softmax` overflows once a Q-value passes about 354 at tau 0.5. The probabilities become NaN, and `selectActionFromProbs` then returns the last action. (unverified)
+- `EpsilonSoft.softmax` still produces NaN probabilities when a Q-value is NaN or infinite, and it divides by zero when tau is 0. (unverified)
 - `EpsilonSoft.selectActionFromProbs` uses `Math.random()` instead of the `random` field, so seeding the field does not make runs repeatable. (unverified)
 - `Agent.calculateReward` gives a dead end a positive reward about 10 points higher than a normal move. Its comment says dead ends should lose points. (unverified)
 
