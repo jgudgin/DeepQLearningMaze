@@ -75,6 +75,13 @@
 - Reason: Q-learning learns from `(s, a, r, s')`, where `s` is the position the agent acted from and `s'` is the position the action led to. The agent stored the position after the move as both states, so the network trained on the wrong state-action pair.
 - Consequence: `tools/ExperienceStateProbe.java` makes two moves and checks both states of each stored experience.
 
+### 2026-09-15: A move into the goal is stored as terminal
+
+- Decision: when a move reaches the goal, `Agent.move` stores `null` as the experience's next state. `Agent.isAtGoal` decides whether a state is the goal, and `Agent.calculateReward` uses the same check.
+- Reason: the episode ends at the goal, so the target for that move should be the reward alone. `QLearningNetwork.train` already treats a null next state as terminal. The agent stored the goal state instead, so the target added `gamma * max Q(goal)`.
+- Alternative not taken: an explicit terminal flag on `Experience`. That would change the constructor and every place that builds an experience.
+- Consequence: no stored experience references the goal state object, so the in-place reset in `MazeApp.startGameLoop` no longer changes a stored experience. `tools/GoalTerminalProbe.java` checks the terminal experience and the reset.
+
 ## Known bugs
 
 Entries marked (unverified) come from reading the code. The others were confirmed by running it.
@@ -82,7 +89,6 @@ Entries marked (unverified) come from reading the code. The others were confirme
 ### Training
 
 - At the agent's learning rate of 0.01, training steps can jump past their target. `tools/TrainingDirectionProbe.java` reports this at 0.01 and 0.1 without failing. In its latest run, 9 of 200 networks at 0.01 and 54 of 200 at 0.1 ended farther from a target of 10 after 20 steps, and every one had crossed the target. At 0.001, none did. The unscaled coordinate inputs probably make the steps larger. (cause unverified)
-- Training never treats the goal as a terminal state. (unverified)
 
 ### Policy and rewards
 
@@ -94,7 +100,7 @@ Entries marked (unverified) come from reading the code. The others were confirme
 
 - `ExperienceReplay.addExperience` checks for duplicates with `Experience.equals`, which `Experience` does not override. The check never matches.
 - `ExperienceReplay.addExperience` replaces a random entry when the buffer is full. Its comment says it replaces the oldest. (unverified)
-- `MazeApp.startGameLoop` resets the agent's `State` object in place at the end of an episode. That object is the next state of the episode's last experience, so the reset rewrites that next state to the start position. (which state gets rewritten is unverified)
+- `MazeApp.startGameLoop` resets the agent's `State` object in place at the end of an episode. No stored experience references that object today, and `tools/GoalTerminalProbe.java` shows no experience changes after the reset. Any future code that stores the agent's current state object would be rewritten by the reset.
 
 ### Maze and app
 

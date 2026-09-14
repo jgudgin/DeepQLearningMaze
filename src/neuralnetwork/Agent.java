@@ -88,9 +88,15 @@ public class Agent {
             //calculate the reward based on the move
             double reward = calculateReward(action);
 
+            // TODO comment needed: why a move into the goal stores null as its next state, since QLearningNetwork.train treats a null next state as terminal and the episode ends at the goal
+            State nextState = currentState;
+            if (isAtGoal(currentState)) {
+                nextState = null;
+            }
+
             //create a new experience
-            // TODO comment needed: why the experience stores previousState as its current state and currentState as its next state, since Q-learning learns from (s, a, r, s') where s is the position the agent acted from
-            Experience experience = new Experience(previousState, action, reward, currentState);
+            // TODO comment needed: why the experience stores previousState as its current state and the state after the move as its next state, since Q-learning learns from (s, a, r, s') where s is the position the agent acted from
+            Experience experience = new Experience(previousState, action, reward, nextState);
             experienceReplay.addExperience(experience);
 
             //update the total reward
@@ -134,6 +140,11 @@ public class Agent {
         }
     }
 
+    private boolean isAtGoal(State state) {
+        int[] goalPos = mazeApp.getEndPosition();
+        return state.getX() == goalPos[0] && state.getY() == goalPos[1];
+    }
+
     public double calculateReward(Action action) {
         int[] goalPos = mazeApp.getEndPosition();
         int currentX = currentState.getX();
@@ -143,7 +154,7 @@ public class Agent {
         int currentDistance = Math.abs(currentX - goalPos[0]) + Math.abs(currentY - goalPos[1]);
 
         //high reward for reaching the goal
-        if (currentX == goalPos[0] && currentY == goalPos[1]) {
+        if (isAtGoal(currentState)) {
             return 5000; // High reward for reaching the goal
         }
 
