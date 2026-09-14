@@ -47,10 +47,20 @@ public class Agent {
         return currentState;
     }
 
+    private double[] predictQValues(List<Action> actions) {
+        double[] values = new double[actions.size()];
+        for (int i = 0; i < actions.size(); i++) {
+            Action candidate = actions.get(i);
+            Experience query = new Experience(currentState, candidate, 0.0, null);
+            double[] prediction = qLearningNetwork.predict(query);
+            values[i] = prediction[candidate.index()];
+        }
+        return values;
+    }
+
     public void move(List<Action> actions) throws InterruptedException {
 
-        //create a new array to store q values for available actions
-        qValues = new double[actions.size()];
+        qValues = predictQValues(actions);
 
         //use epsilon soft policy to select an action
         Action action = epsilonSoft.selectAction(qValues, actions);

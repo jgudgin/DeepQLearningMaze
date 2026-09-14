@@ -19,3 +19,11 @@
 - Consequence: `State.getNextState` adds `Action.getDeltaCol()` to `x` and `Action.getDeltaRow()` to `y`.
 - `Action` stays an enum. The enum's built-in `values()` replaces the `values()` method from the development branch.
 - `QLearningNetwork` uses the hidden layer loop from the development branch. That loop creates every hidden layer.
+
+## Agent action selection
+
+- Decision: `Agent.move` asks the network for a Q-value for each available action before it selects a move.
+- For each action, the agent calls `predict` with its current state and that action, then reads `output[action.index()]`.
+- Source: `QLearningNetwork.train` only adjusts `output[action.index()]` for the action in the input, so that output is the network's Q-value for the pair.
+- The agent queries the state before the move. Training still stores the state after the move.
+- Known risk: `EpsilonSoft.softmax` overflows once a Q-value passes about 354 at tau 0.5. The probabilities then become NaN and the policy returns the last action.
