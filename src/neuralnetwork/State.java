@@ -52,8 +52,8 @@ public class State {
         }
 
         //calculate new position
-        int newX = x + action.getDeltaX();
-        int newY = y + action.getDeltaY();
+        int newX = x + action.getDeltaRow();
+        int newY = y + action.getDeltaCol();
 
         //create new state with updated surroundings
         return new State(newX, newY, maze);
