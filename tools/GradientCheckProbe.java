@@ -11,9 +11,9 @@ import neuralnetwork.QLearningNetwork;
 import neuralnetwork.State;
 
 // Part 1: numerical gradient check of one QLearningNetwork.train step.
-// For a terminal experience, train sets the target for the chosen action to
-// u = Q + alpha * (reward - Q) and leaves the other outputs at their predictions. One step should
-// therefore follow the gradient of L = 1/2 * (Q - u)^2 for every weight and bias.
+// Deep Q-learning regresses the chosen action's output onto r + gamma * max Q(s', a'). For a terminal
+// experience the next-state term is 0, so the target is the reward r. One gradient descent step
+// with learning rate alpha should follow the gradient of L = 1/2 * (Q - r)^2 for every weight and bias.
 // The probe nudges each weight and bias by +/- 1e-6 and measures the change in L. That central
 // difference does not depend on the backpropagation code. The probe then runs one train step and
 // recovers the gradient the code used from each parameter's change: -(after - before) / alpha.
@@ -96,8 +96,8 @@ public class GradientCheckProbe {
         String[] names = {"hidden layer 0", "hidden layer 1", "output layer"};
 
         double q0 = network.predict(terminal)[actionIndex];
-        double target = q0 + alpha * (reward - q0);
-        System.out.printf("Q before the step: %.6f, training target u: %.6f%n", q0, target);
+        double target = reward;
+        System.out.printf("Q before the step: %.6f, regression target r: %.6f%n", q0, target);
 
         double epsilon = 1e-6;
         double[][][] numericalWeights = new double[3][][];

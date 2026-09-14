@@ -7,10 +7,10 @@ import neuralnetwork.State;
 // Setup: a terminal experience (no next state) with reward 10, so the Q-learning target is exactly 10.
 // Network: one input per value from State.convertToInput, hidden layers {10, 5}, 4 outputs, discount 0.9.
 // Expectation: gradient descent on squared error with a small enough step never moves a prediction
-// away from a fixed target, whatever the starting prediction. The checks use learning rate 0.01, and
+// away from a fixed target, whatever the starting prediction. The checks use learning rate 0.001, and
 // every network should move closer, including networks whose prediction starts at or below 0.
-// The probe also reports, without checking, what happens at the agent's learning rate of 0.1, where
-// steps can jump past the target.
+// The probe also reports, without checking, what happens at learning rates 0.01 (the agent's rate)
+// and 0.1, where steps can jump past the target.
 public class TrainingDirectionProbe {
 
     private static int failures = 0;
@@ -90,14 +90,17 @@ public class TrainingDirectionProbe {
     }
 
     public static void main(String[] args) {
-        Result small = run(0.01);
-        print("learning rate 0.01", small);
+        Result small = run(0.001);
+        print("learning rate 0.001", small);
         check("no network moves farther from the target", small.farther == 0);
         check("every network moves closer to the target", small.closer == small.trials);
         check("every network that starts at or below 0 moves closer", small.atOrBelowZeroAndCloser == small.startedAtOrBelowZero);
 
-        Result agentRate = run(0.1);
-        print("learning rate 0.1 (the agent's rate, reported only)", agentRate);
+        Result agentRate = run(0.01);
+        print("learning rate 0.01 (the agent's rate, reported only)", agentRate);
+
+        Result large = run(0.1);
+        print("learning rate 0.1 (reported only)", large);
 
         System.out.println("failures: " + failures);
         if (failures > 0) {

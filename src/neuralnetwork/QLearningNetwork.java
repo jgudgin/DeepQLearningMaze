@@ -47,6 +47,7 @@ public class QLearningNetwork {
         return output.forward(outputs);     //return output through output layer with Q-value prediction
     }
 
+    // TODO comment needed: the formula below is the tabular Q-learning update, but train now regresses the chosen output onto R(s,a) + gamma * max Q(s',a') and applies alpha once as the gradient step size
     //train network based on Q-learning update formula:
     //Qt(s,a) = Qt-1(s,a) + alpha* (R(s,a) + gamma * maxa' * Q(s',a') - Qt-1(s,a))
     public void train(Experience experience) {
@@ -80,10 +81,11 @@ public class QLearningNetwork {
         double targetQValue = experience.getRewardReceived() + gamma * maxQNext;
 //        System.out.println("Target Q-value (R(s,a) + gamma * maxQNext): " + targetQValue);
 
+        // TODO comment needed: the two comment lines below describe a tabular alpha update, but the chosen action's target is now r + gamma * max Q(s', a') and alpha is applied once, as the gradient step size in Layer.updateWeights
         //update Q-value for current action in current state
         //update Qt(s,a) with: alpha * (targetQValue - Qt-1(s,a))
         int actionIndex = experience.getAction().index();
-        qValuesCurrent[actionIndex] += (alpha * (targetQValue - qValuesCurrent[actionIndex]));
+        qValuesCurrent[actionIndex] = targetQValue;
 
         //backpropagate the updated Q-values through the neural network, using the predicted ones to calculate error
         backpropagate(experience, qValuesCurrent, initialQValues);

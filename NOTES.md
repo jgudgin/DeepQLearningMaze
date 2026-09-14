@@ -60,7 +60,14 @@
 
 - Decision: `QLearningNetwork.backpropagate` uses the error as the output layer gradient, with no ReLU derivative.
 - Reason: `Output.forward` applies no activation, so the derivative of each output with respect to its weighted sum is 1. The ReLU derivative gave every prediction at or below 0 a zero gradient, so those networks never learned.
-- Consequence: `tools/GradientCheckProbe.java` also checks a network whose prediction starts below 0. `tools/TrainingDirectionProbe.java` expects every network to move closer at learning rate 0.01.
+- Consequence: `tools/GradientCheckProbe.java` also checks a network whose prediction starts below 0. `tools/TrainingDirectionProbe.java` expects every network to move closer at its checked learning rate.
+
+### 2026-09-15: The learning rate is applied once, and the agent uses 0.01
+
+- Decision: `QLearningNetwork.train` sets the chosen action's target to `r + gamma * max Q(s', a')` and no longer blends it with the prediction using `alpha`. `alpha` is only the gradient step size in `Layer.updateWeights`.
+- Decision: `Agent` sets the learning rate to 0.01.
+- Reason: deep Q-learning regresses the network output onto the Q-learning target and applies the learning rate once, through gradient descent. The blended target scaled every step by `alpha` a second time, so at 0.1 each step was 10 times smaller than intended. A learning rate of 0.01 keeps the step size training used before this change.
+- Consequence: `tools/GradientCheckProbe.java` checks the gradient of `1/2 * (Q - r)^2` for a terminal experience. `tools/TrainingDirectionProbe.java` checks direction at learning rate 0.001 and reports 0.01 and 0.1.
 
 ## Known bugs
 
@@ -68,8 +75,7 @@ Entries marked (unverified) come from reading the code. The others were confirme
 
 ### Training
 
-- `QLearningNetwork.train` scales the target change by `alpha`, and `backpropagate` uses `alpha` again as the step size. (unverified)
-- At the agent's learning rate of 0.1, training steps can jump past their target. `tools/TrainingDirectionProbe.java` reports this at 0.1 without failing. In its latest run, 8 of 200 networks ended farther from a target of 10 after 20 steps, and all 8 had crossed the target. At 0.01, none did. The unscaled coordinate inputs probably make the steps larger. (cause unverified)
+- At the agent's learning rate of 0.01, training steps can jump past their target. `tools/TrainingDirectionProbe.java` reports this at 0.01 and 0.1 without failing. In its latest run, 9 of 200 networks at 0.01 and 54 of 200 at 0.1 ended farther from a target of 10 after 20 steps, and every one had crossed the target. At 0.001, none did. The unscaled coordinate inputs probably make the steps larger. (cause unverified)
 - `Agent.move` stores the state after the move as both the current and the next state of each experience.
 - Training never treats the goal as a terminal state. (unverified)
 
