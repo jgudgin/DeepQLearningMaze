@@ -17,8 +17,9 @@ import neuralnetwork.State;
 // The probe nudges each weight and bias by +/- 1e-6 and measures the change in L. That central
 // difference does not depend on the backpropagation code. The probe then runs one train step and
 // recovers the gradient the code used from each parameter's change: -(after - before) / alpha.
-// The chosen network has 0 < Q < 10 and active neurons in both hidden layers. With Q above 0, the
-// ReLU derivative on the output layer, which is a known bug, equals 1 and does not affect the check.
+// It runs the check twice: once for a network whose prediction starts between 0 and 10, and once
+// for a network whose prediction starts below 0. Both networks have active neurons in both hidden
+// layers.
 // Part 2: the agent trains its real network for 50 moves without an exception. Training starts
 // once the replay buffer holds 32 experiences.
 public class GradientCheckProbe {
@@ -67,8 +68,8 @@ public class GradientCheckProbe {
         }
     }
 
-    public static void main(String[] args) throws Exception {
-        System.out.println("== Part 1: numerical gradient check");
+    private static void checkGradient(String label, double lowestQ, double highestQ) throws Exception {
+        System.out.println("-- " + label);
         double alpha = 0.1;
         double reward = 10.0;
         int actionIndex = Action.EAST.index();
@@ -76,18 +77,17 @@ public class GradientCheckProbe {
         int inputLength = new State(3, 5, null).convertToInput(Action.EAST).length;
 
         QLearningNetwork network = null;
-        for (int t = 0; t < 1000 && network == null; t++) {
+        for (int t = 0; t < 5000 && network == null; t++) {
             QLearningNetwork candidate = new QLearningNetwork(inputLength, 4, new int[]{10, 5}, alpha, 0.9);
             double q = candidate.predict(terminal)[actionIndex];
             Layer[] hidden = (Layer[]) read(QLearningNetwork.class, candidate, "hidden");
-            if (q > 0.5 && q < 9.5 && countActive(hidden[0].getOutputs()) > 0 && countActive(hidden[1].getOutputs()) > 0) {
+            if (q > lowestQ && q < highestQ && countActive(hidden[0].getOutputs()) > 0 && countActive(hidden[1].getOutputs()) > 0) {
                 network = candidate;
             }
         }
-        check("found a network with 0 < Q < 10 and active hidden neurons", network != null);
+        check(label + ": found a matching network with active hidden neurons", network != null);
         if (network == null) {
-            System.out.println("failures: " + failures);
-            System.exit(1);
+            return;
         }
 
         Layer[] hidden = (Layer[]) read(QLearningNetwork.class, network, "hidden");
@@ -145,57 +145,64 @@ public class GradientCheckProbe {
             trained = false;
             System.out.println("train threw " + e);
         }
-        check("one train step runs without an exception", trained);
+        check(label + ": one train step runs without an exception", trained);
+        if (!trained) {
+            return;
+        }
 
-        if (trained) {
-            for (int l = 0; l < layers.length; l++) {
-                double[][] weights = (double[][]) read(Layer.class, layers[l], "weights");
-                double[] biases = (double[]) read(Layer.class, layers[l], "biases");
+        for (int l = 0; l < layers.length; l++) {
+            double[][] weights = (double[][]) read(Layer.class, layers[l], "weights");
+            double[] biases = (double[]) read(Layer.class, layers[l], "biases");
 
-                int weightCount = 0;
-                int weightNonzero = 0;
-                int weightMismatches = 0;
-                double weightLargest = 0.0;
-                for (int i = 0; i < weights.length; i++) {
-                    for (int j = 0; j < weights[i].length; j++) {
-                        double used = -(weights[i][j] - weightsBefore[l][i][j]) / alpha;
-                        double numerical = numericalWeights[l][i][j];
-                        double difference = Math.abs(used - numerical);
-                        weightCount++;
-                        if (Math.abs(numerical) > 1e-9) {
-                            weightNonzero++;
-                        }
-                        if (difference > 1e-5 + 1e-3 * Math.abs(numerical)) {
-                            weightMismatches++;
-                        }
-                        weightLargest = Math.max(weightLargest, difference);
-                    }
-                }
-
-                int biasNonzero = 0;
-                int biasMismatches = 0;
-                double biasLargest = 0.0;
-                for (int j = 0; j < biases.length; j++) {
-                    double used = -(biases[j] - biasesBefore[l][j]) / alpha;
-                    double numerical = numericalBiases[l][j];
+            int weightCount = 0;
+            int weightNonzero = 0;
+            int weightMismatches = 0;
+            double weightLargest = 0.0;
+            for (int i = 0; i < weights.length; i++) {
+                for (int j = 0; j < weights[i].length; j++) {
+                    double used = -(weights[i][j] - weightsBefore[l][i][j]) / alpha;
+                    double numerical = numericalWeights[l][i][j];
                     double difference = Math.abs(used - numerical);
+                    weightCount++;
                     if (Math.abs(numerical) > 1e-9) {
-                        biasNonzero++;
+                        weightNonzero++;
                     }
                     if (difference > 1e-5 + 1e-3 * Math.abs(numerical)) {
-                        biasMismatches++;
+                        weightMismatches++;
                     }
-                    biasLargest = Math.max(biasLargest, difference);
+                    weightLargest = Math.max(weightLargest, difference);
                 }
-
-                System.out.printf("%s weights: %d total, %d with nonzero numerical gradient, %d mismatches, largest difference %.3e%n",
-                        names[l], weightCount, weightNonzero, weightMismatches, weightLargest);
-                System.out.printf("%s biases: %d total, %d with nonzero numerical gradient, %d mismatches, largest difference %.3e%n",
-                        names[l], biases.length, biasNonzero, biasMismatches, biasLargest);
-                check(names[l] + " weights follow the numerical gradient", weightMismatches == 0);
-                check(names[l] + " biases follow the numerical gradient", biasMismatches == 0);
             }
+
+            int biasNonzero = 0;
+            int biasMismatches = 0;
+            double biasLargest = 0.0;
+            for (int j = 0; j < biases.length; j++) {
+                double used = -(biases[j] - biasesBefore[l][j]) / alpha;
+                double numerical = numericalBiases[l][j];
+                double difference = Math.abs(used - numerical);
+                if (Math.abs(numerical) > 1e-9) {
+                    biasNonzero++;
+                }
+                if (difference > 1e-5 + 1e-3 * Math.abs(numerical)) {
+                    biasMismatches++;
+                }
+                biasLargest = Math.max(biasLargest, difference);
+            }
+
+            System.out.printf("%s weights: %d total, %d with nonzero numerical gradient, %d mismatches, largest difference %.3e%n",
+                    names[l], weightCount, weightNonzero, weightMismatches, weightLargest);
+            System.out.printf("%s biases: %d total, %d with nonzero numerical gradient, %d mismatches, largest difference %.3e%n",
+                    names[l], biases.length, biasNonzero, biasMismatches, biasLargest);
+            check(label + ": " + names[l] + " weights follow the numerical gradient", weightMismatches == 0);
+            check(label + ": " + names[l] + " biases follow the numerical gradient", biasMismatches == 0);
         }
+    }
+
+    public static void main(String[] args) throws Exception {
+        System.out.println("== Part 1: numerical gradient check");
+        checkGradient("prediction between 0 and 10", 0.5, 9.5);
+        checkGradient("prediction below 0", -9.5, -0.5);
 
         System.out.println("== Part 2: agent trains for 50 moves");
         int[][] grid = {

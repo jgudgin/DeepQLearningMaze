@@ -105,12 +105,13 @@ public class QLearningNetwork {
         }
 
         //backpropagation through the output layer
+        // TODO comment needed: the two comment lines below describe a ReLU derivative, but the output layer is linear, so its gradient is the error itself
         //calculate gradient for output layer: (∂L / ∂z) = error * σ'(z)
         //where z is the output of the neural network and σ'(z) is the derivative of ReLU activation function
         //create an array for each neuron in the output layer
         double[] outputGradients = new double[predictedQValues.length];
         for (int i = 0; i < outputGradients.length; i++) {
-            outputGradients[i] = error[i] * reluDerivative(predictedQValues[i]);   //use the ReLU derivative to calculate the gradient
+            outputGradients[i] = error[i];
         }
 
         // TODO comment needed: why the gradients for the layer below are calculated before this layer's weights are updated

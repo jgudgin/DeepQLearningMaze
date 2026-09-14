@@ -56,6 +56,12 @@
 - Reason: the hidden layers never received a gradient, the output weight gradients used the raw network input, and the hidden weight gradients used each layer's outputs. A network with the correct input size threw `ArrayIndexOutOfBoundsException` on its first training step.
 - Consequence: `tools/GradientCheckProbe.java` compares one training step with a numerical gradient for every weight and bias, and runs the agent for 50 moves with training. `tools/UpdateWeightsProbe.java` checks the weight update loop and the agent's input size.
 
+### 2026-09-15: The output layer gradient is the error
+
+- Decision: `QLearningNetwork.backpropagate` uses the error as the output layer gradient, with no ReLU derivative.
+- Reason: `Output.forward` applies no activation, so the derivative of each output with respect to its weighted sum is 1. The ReLU derivative gave every prediction at or below 0 a zero gradient, so those networks never learned.
+- Consequence: `tools/GradientCheckProbe.java` also checks a network whose prediction starts below 0. `tools/TrainingDirectionProbe.java` expects every network to move closer at learning rate 0.01.
+
 ## Known bugs
 
 Entries marked (unverified) come from reading the code. The others were confirmed by running it.
@@ -63,8 +69,7 @@ Entries marked (unverified) come from reading the code. The others were confirme
 ### Training
 
 - `QLearningNetwork.train` scales the target change by `alpha`, and `backpropagate` uses `alpha` again as the step size. (unverified)
-- At the agent's learning rate of 0.1, training steps can jump past their target. `tools/TrainingDirectionProbe.java` reports this at 0.1 without failing. In one diagnostic run, 24 of the 97 networks that started above 0 ended farther from a target of 10 after 20 steps, and all 24 had crossed the target. At 0.01, none did. The unscaled coordinate inputs probably make the steps larger. (cause unverified)
-- `QLearningNetwork.backpropagate` applies the ReLU derivative to the output layer, which has no activation. A prediction at or below 0 gets a zero gradient and never changes. `tools/TrainingDirectionProbe.java` shows this: every network that started at or below 0 stayed unchanged after 20 training steps.
+- At the agent's learning rate of 0.1, training steps can jump past their target. `tools/TrainingDirectionProbe.java` reports this at 0.1 without failing. In its latest run, 8 of 200 networks ended farther from a target of 10 after 20 steps, and all 8 had crossed the target. At 0.01, none did. The unscaled coordinate inputs probably make the steps larger. (cause unverified)
 - `Agent.move` stores the state after the move as both the current and the next state of each experience.
 - Training never treats the goal as a terminal state. (unverified)
 

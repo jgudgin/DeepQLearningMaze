@@ -7,9 +7,8 @@ import neuralnetwork.State;
 // Setup: a terminal experience (no next state) with reward 10, so the Q-learning target is exactly 10.
 // Network: one input per value from State.convertToInput, hidden layers {10, 5}, 4 outputs, discount 0.9.
 // Expectation: gradient descent on squared error with a small enough step never moves a prediction
-// away from a fixed target. The checks use learning rate 0.01. The output layer still applies a ReLU
-// derivative, which is a known bug, so a network whose starting prediction is 0 or below gets no
-// update and stays where it is. Every network that starts above 0 should move closer.
+// away from a fixed target, whatever the starting prediction. The checks use learning rate 0.01, and
+// every network should move closer, including networks whose prediction starts at or below 0.
 // The probe also reports, without checking, what happens at the agent's learning rate of 0.1, where
 // steps can jump past the target.
 public class TrainingDirectionProbe {
@@ -24,11 +23,12 @@ public class TrainingDirectionProbe {
     }
 
     static class Result {
+        int trials = 0;
         int closer = 0;
         int farther = 0;
         int unchanged = 0;
-        int startedAboveZero = 0;
-        int aboveZeroAndCloser = 0;
+        int startedAtOrBelowZero = 0;
+        int atOrBelowZeroAndCloser = 0;
         int fartherAndCrossedTarget = 0;
     }
 
@@ -39,11 +39,11 @@ public class TrainingDirectionProbe {
         double target = 10.0;
         int inputLength = state.convertToInput(Action.EAST).length;
 
-        int trials = 200;
         int steps = 20;
         Result result = new Result();
+        result.trials = 200;
 
-        for (int t = 0; t < trials; t++) {
+        for (int t = 0; t < result.trials; t++) {
             QLearningNetwork network = new QLearningNetwork(inputLength, 4, new int[]{10, 5}, learningRate, 0.9);
             double start = network.predict(terminal)[eastIndex];
             double startDistance = Math.abs(target - start);
@@ -72,10 +72,10 @@ public class TrainingDirectionProbe {
                 result.unchanged++;
             }
 
-            if (start > 0) {
-                result.startedAboveZero++;
+            if (start <= 0) {
+                result.startedAtOrBelowZero++;
                 if (endDistance < startDistance) {
-                    result.aboveZeroAndCloser++;
+                    result.atOrBelowZeroAndCloser++;
                 }
             }
         }
@@ -83,9 +83,9 @@ public class TrainingDirectionProbe {
     }
 
     private static void print(String label, Result result) {
-        System.out.println(label + ": 200 networks, 20 steps each");
+        System.out.println(label + ": " + result.trials + " networks, 20 steps each");
         System.out.println("  closer=" + result.closer + " farther=" + result.farther + " unchanged=" + result.unchanged);
-        System.out.println("  started above 0: " + result.startedAboveZero + ", of those closer: " + result.aboveZeroAndCloser);
+        System.out.println("  started at or below 0: " + result.startedAtOrBelowZero + ", of those closer: " + result.atOrBelowZeroAndCloser);
         System.out.println("  farther and crossed the target at some step: " + result.fartherAndCrossedTarget);
     }
 
@@ -93,8 +93,8 @@ public class TrainingDirectionProbe {
         Result small = run(0.01);
         print("learning rate 0.01", small);
         check("no network moves farther from the target", small.farther == 0);
-        check("at least one network moves closer", small.closer > 0);
-        check("every network that starts above 0 moves closer", small.aboveZeroAndCloser == small.startedAboveZero);
+        check("every network moves closer to the target", small.closer == small.trials);
+        check("every network that starts at or below 0 moves closer", small.atOrBelowZeroAndCloser == small.startedAtOrBelowZero);
 
         Result agentRate = run(0.1);
         print("learning rate 0.1 (the agent's rate, reported only)", agentRate);
