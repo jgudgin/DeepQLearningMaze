@@ -35,15 +35,11 @@ public class Hidden extends Layer {
     public double[] calcNextGradients(double[] layerGradients) {
         double[] nextGradients = new double[inputs.length];
 
+        // TODO comment needed: why this method does not apply the ReLU derivative, since QLearningNetwork.backpropagate applies it once before calling this method
         for (int j = 0; j < outputs.length; j++) {
-            //determine the gradient based on the ReLU activation function
-            //if the current output is > 0 then the gradient is 1
-            //if the output is <= 0 then the gradient is 0
-            double reluGradient = outputs[j] > 0 ? 1 : 0;
-
             //propagate the gradients back to the previous layer
             for (int i = 0; i < inputs.length; i++) {
-                nextGradients[i] += layerGradients[j] * reluGradient * weights[i][j];
+                nextGradients[i] += layerGradients[j] * weights[i][j];
             }
         }
 

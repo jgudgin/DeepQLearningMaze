@@ -45,7 +45,7 @@ public abstract class Layer {
         //using formula Wnew = Wold - alpha * (∂L / ∂W)
         //where W = weight, alpha = learning rate, L = loss
         //weight gradient (dL / dW) is already calculated before this method is called
-        for (int i = 0; i < weights[i].length; i++) {
+        for (int i = 0; i < weights.length; i++) {
             for (int j = 0; j < weights[i].length; j++) {
                 weights[i][j] -= learningRate * weightGradients[i][j];
             }
@@ -66,6 +66,10 @@ public abstract class Layer {
     //return the outputs of current layer
     public double[] getOutputs() {
         return outputs;
+    }
+
+    public double[] getInputs() {
+        return inputs;
     }
 
     //return the number of outputs for current layer

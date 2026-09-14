@@ -18,7 +18,8 @@ public class Agent {
     private int batchSize = 32; //amount of experiences to accumulate before beginning training
     private int bufferLimit = 1000;  //max amount of experiences kept in the replay buffer to be sampled
     
-    int inputSize = 100;    //amount of neurons in input layer
+    // TODO comment needed: why the input size is 2 + Action.COUNT, since State.convertToInput returns x, y and a one-hot action
+    int inputSize = 2 + Action.COUNT;    //amount of neurons in input layer
     int outputSize = 4;     //amount of neurons in output layer
     int[] hiddenSizes = {10, 5};    //amount of neurons in each hidden layer
     double learningRate = 0.1;  //weight that new information has on known information
