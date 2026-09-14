@@ -31,4 +31,10 @@ public enum Action {
     public int index() {
         return ordinal();
     }
+
+    public double[] convertToInput() {
+        double[] encoding = new double[COUNT];
+        encoding[index()] = 1.0;
+        return encoding;
+    }
 }
