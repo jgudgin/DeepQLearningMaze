@@ -1,29 +1,88 @@
 # Notes
 
-## State coordinates
+## Design decisions
 
-- Assumption: `State.x` is the maze row and `State.y` is the maze column.
-- Source: `State.getSurroundings` checks `maze[x - 1][y]` for NORTH and `maze[x + 1][y]` for SOUTH.
-- Consequence: `State.getNextState` adds `Action.getDeltaRow()` to `x` and `Action.getDeltaCol()` to `y`.
+### 2026-09-15: Action is an enum
 
-## Action encoding
+- Decision: `Action` is an enum with the constants NORTH, SOUTH, EAST, WEST in that order.
+- Reason: `ordinal()` gives each action its network output index, and `COUNT` sizes the output layer.
+- Consequence: the enum's built-in `values()` replaces the hand-written `values()` from the old class.
+
+### 2026-09-15: Actions are one-hot encoded
 
 - Decision: `Action.convertToInput()` returns a one-hot array of length `Action.COUNT`, with the 1 at `index()`.
-- The order is NORTH, SOUTH, EAST, WEST. This matches the encoding of the `Action` class before it became an enum.
-- Open question: the network takes the action as input and also outputs one value per action. A Q(s) design would drop the action from the input and remove this method.
+- Reason: this matches the encoding of the `Action` class before it became an enum.
+- Consequence: reordering the enum constants changes the network input.
 
-## Coordinates after merging development
+### 2026-09-15: x is the column and y is the row
 
-- Decision: `State.x` is the maze column and `State.y` is the maze row. This decision replaces the row assumption in "State coordinates".
-- Source: `State.updateSurroundings` checks `maze[y - 1][x]` for NORTH, and `MazeApp` draws `maze[row][col]`.
+- Decision: `State.x` is the maze column and `State.y` is the maze row.
+- Reason: `State.updateSurroundings` checks `maze[y - 1][x]` for NORTH, and `MazeApp` draws `maze[row][col]`.
 - Consequence: `State.getNextState` adds `Action.getDeltaCol()` to `x` and `Action.getDeltaRow()` to `y`.
-- `Action` stays an enum. The enum's built-in `values()` replaces the `values()` method from the development branch.
-- `QLearningNetwork` uses the hidden layer loop from the development branch. That loop creates every hidden layer.
 
-## Agent action selection
+### 2026-09-15: Every hidden layer is created in one loop
 
-- Decision: `Agent.move` asks the network for a Q-value for each available action before it selects a move.
-- For each action, the agent calls `predict` with its current state and that action, then reads `output[action.index()]`.
-- Source: `QLearningNetwork.train` only adjusts `output[action.index()]` for the action in the input, so that output is the network's Q-value for the pair.
-- The agent queries the state before the move. Training still stores the state after the move.
-- Known risk: `EpsilonSoft.softmax` overflows once a Q-value passes about 354 at tau 0.5. The probabilities then become NaN and the policy returns the last action.
+- Decision: the `QLearningNetwork` constructor creates each hidden layer in a single loop. The first layer takes `inputSize` inputs, and each later layer takes the previous layer's size.
+- Reason: the earlier loop stopped one layer short and left the last hidden layer null.
+
+### 2026-09-15: The agent chooses moves from network Q-values
+
+- Decision: `Agent.predictQValues` calls `predict` once for each available action, with the current state and that action, and reads `output[action.index()]`.
+- Reason: `QLearningNetwork.train` only adjusts `output[action.index()]` for the action in the input, so that output is the network's Q-value for the pair.
+- Consequence: `tools/AgentPolicyProbe.java` checks that a network preferring EAST makes the agent pick EAST.
+
+### 2026-09-15: development is the working branch
+
+- Decision: `development` was merged into `main`, and new work happens on `development`.
+
+## Known bugs
+
+Entries marked (unverified) come from reading the code. The others were confirmed by running it.
+
+### Training
+
+- `QLearningNetwork.backpropagate` computes the error as target minus prediction, and `Layer.updateWeights` subtracts the gradient. Each update moves predictions away from their targets.
+- `QLearningNetwork.train` scales the target change by `alpha`, and `backpropagate` uses `alpha` again as the step size. (unverified)
+- `QLearningNetwork.backpropagate` applies the ReLU derivative to the output layer, which has no activation. Negative predictions get a zero gradient. (unverified)
+- `QLearningNetwork.backpropagate` builds the output weight gradients from the raw network input, not from the last hidden layer's outputs.
+- `QLearningNetwork.backpropagate` resets `nextLayerGradients` to zeros at the start of each hidden layer pass, so hidden layer weights never change.
+- `QLearningNetwork.backpropagate` builds hidden weight gradients from the layer's own outputs, not its inputs. `Hidden.calcNextGradients` applies the ReLU derivative a second time. (unverified)
+- Nothing calls `Output.calcNextGradients`. (unverified)
+- `Layer.updateWeights` bounds its outer loop by the output count. It skips weight rows when a layer has more inputs than outputs, and it throws `ArrayIndexOutOfBoundsException` when a layer has more outputs than inputs.
+- `QLearningNetwork.predict` returns the output layer's shared array. In `train`, the next-state prediction overwrites `qValuesCurrent`. (overwrite unverified)
+- `Agent.move` stores the state after the move as both the current and the next state of each experience.
+- Training never treats the goal as a terminal state. (unverified)
+- `Agent` sets `inputSize` to 100, but the network input has 6 values. The first hidden layer holds unused weight rows, and weight initialization uses the wrong fan-in. (unverified)
+
+### Policy and rewards
+
+- `EpsilonSoft.softmax` overflows once a Q-value passes about 354 at tau 0.5. The probabilities become NaN, and `selectActionFromProbs` then returns the last action. (unverified)
+- `EpsilonSoft.selectActionFromProbs` uses `Math.random()` instead of the `random` field, so seeding the field does not make runs repeatable. (unverified)
+- `Agent.calculateReward` gives a dead end a positive reward about 10 points higher than a normal move. Its comment says dead ends should lose points. (unverified)
+
+### Experience replay
+
+- `ExperienceReplay.addExperience` checks for duplicates with `Experience.equals`, which `Experience` does not override. The check never matches.
+- `ExperienceReplay.addExperience` replaces a random entry when the buffer is full. Its comment says it replaces the oldest. (unverified)
+- `MazeApp.startGameLoop` resets the agent's `State` object in place at the end of an episode. This rewrites the state stored in the last experience.
+
+### Maze and app
+
+- `MazeApp.carvePath` never carves row `GRID_SIZE - 2` or column `GRID_SIZE - 2`, so the right and bottom edges have a double wall. (unverified)
+- `MazeApp.carvePath` labels its directions wrongly, creates a new unseeded `Random` on every call and uses a biased shuffle. (unverified)
+- `MazeApp.startGameLoop` checks the episode count before incrementing it, so training stops at the 101st goal. (unverified)
+- `QLearningNetwork.backpropagate` creates an unused `Scanner` on every call. `Agent` has an unused `Scanner` field and unused locals in `move` and `trainWithBatch`.
+- The `QLearningNetwork` constructor throws when `hiddenSizes` is empty. (unverified)
+
+### Repository
+
+- `nbproject/private/` is committed and contains absolute paths under `/Users/jgudgin`.
+- The repository has no README. `nbproject/project.properties` points at a `test/` folder that does not exist.
+- `.gitignore` does not list `output/` or `dist/`.
+
+## Open questions
+
+- Should the network be Q(s) or Q(s,a)? The input includes the action, and the output holds one value per action. A Q(s) design would drop the action from the input and remove `Action.convertToInput()`.
+- Should coordinates be scaled before they enter the network? `State.convertToInput` passes raw values from 0 to 15.
+- Is the epsilon decay rate intended? At 0.999 every 20 moves, epsilon needs about 46,000 valid moves to fall from 1.0 to 0.1.
+- What should a normal step and a dead end be worth in `Agent.calculateReward`?
