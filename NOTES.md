@@ -41,15 +41,21 @@
 - Reason: `Math.exp` overflows to Infinity above about 709 and underflows to 0 far below it. Either case turns the probabilities into NaN, and `selectActionFromProbs` then always returns the last action. The subtraction cancels in the softmax fraction, so the probabilities stay the same, and the largest term becomes e^0 = 1.
 - Consequence: `tools/SoftmaxProbe.java` checks the chosen-action shares against softmax values worked out by hand, including Q-values of 1000 and -1000.
 
+### 2026-09-15: The training error is prediction minus target
+
+- Decision: `QLearningNetwork.backpropagate` computes the error as prediction minus target.
+- Reason: `Layer.updateWeights` subtracts the learning rate times the gradient. For squared error, the gradient with respect to the prediction is prediction minus target. The earlier target minus prediction made every update move the prediction away from its target.
+- Alternative not taken: making `Layer.updateWeights` add the gradient. That would contradict the update formula written in `Layer`.
+- Consequence: `tools/TrainingDirectionProbe.java` trains 200 networks toward a fixed target of 10 and checks that none moves farther away.
+
 ## Known bugs
 
 Entries marked (unverified) come from reading the code. The others were confirmed by running it.
 
 ### Training
 
-- `QLearningNetwork.backpropagate` computes the error as target minus prediction, and `Layer.updateWeights` subtracts the gradient. Each update moves predictions away from their targets.
 - `QLearningNetwork.train` scales the target change by `alpha`, and `backpropagate` uses `alpha` again as the step size. (unverified)
-- `QLearningNetwork.backpropagate` applies the ReLU derivative to the output layer, which has no activation. Negative predictions get a zero gradient. (unverified)
+- `QLearningNetwork.backpropagate` applies the ReLU derivative to the output layer, which has no activation. A prediction at or below 0 gets a zero gradient and never changes. `tools/TrainingDirectionProbe.java` shows this: every network that started at or below 0 stayed unchanged after 20 training steps.
 - `QLearningNetwork.backpropagate` builds the output weight gradients from the raw network input, not from the last hidden layer's outputs.
 - `QLearningNetwork.backpropagate` resets `nextLayerGradients` to zeros at the start of each hidden layer pass, so hidden layer weights never change.
 - `QLearningNetwork.backpropagate` builds hidden weight gradients from the layer's own outputs, not its inputs. `Hidden.calcNextGradients` applies the ReLU derivative a second time. (unverified)

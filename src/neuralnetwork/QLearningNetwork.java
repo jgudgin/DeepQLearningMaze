@@ -108,7 +108,8 @@ public class QLearningNetwork {
         //the error is used to calculate the gradients for backpropagation
         double[] error = new double[updatedQValues.length];
         for (int i = 0; i < updatedQValues.length; i++) {
-            error[i] = updatedQValues[i] - predictedQValues[i];
+            // TODO comment needed: why the error is prediction minus target, since Layer.updateWeights subtracts the gradient and the squared error gradient with respect to the prediction is prediction minus target
+            error[i] = predictedQValues[i] - updatedQValues[i];
         }
 
         //backpropagation through the output layer
