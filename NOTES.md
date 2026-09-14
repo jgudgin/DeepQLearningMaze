@@ -67,7 +67,7 @@
 - Decision: `QLearningNetwork.train` sets the chosen action's target to `r + gamma * max Q(s', a')` and no longer blends it with the prediction using `alpha`. `alpha` is only the gradient step size in `Layer.updateWeights`.
 - Decision: `Agent` sets the learning rate to 0.01.
 - Reason: deep Q-learning regresses the network output onto the Q-learning target and applies the learning rate once, through gradient descent. The blended target scaled every step by `alpha` a second time, so at 0.1 each step was 10 times smaller than intended. A learning rate of 0.01 keeps the step size training used before this change.
-- Consequence: `tools/GradientCheckProbe.java` checks the gradient of `1/2 * (Q - r)^2` for a terminal experience. `tools/TrainingDirectionProbe.java` checks direction at learning rate 0.001 and reports 0.01 and 0.1.
+- Consequence: `tools/GradientCheckProbe.java` checks the gradient of `1/2 * (Q - r)^2` for a terminal experience.
 
 ### 2026-09-15: Experiences store the state before and after the move
 
@@ -82,13 +82,20 @@
 - Alternative not taken: an explicit terminal flag on `Experience`. That would change the constructor and every place that builds an experience.
 - Consequence: no stored experience references the goal state object, so the in-place reset in `MazeApp.startGameLoop` no longer changes a stored experience. `tools/GoalTerminalProbe.java` checks the terminal experience and the reset.
 
+### 2026-09-15: Coordinates are scaled to between 0 and 1
+
+- Decision: `State.convertToInput` divides `x` and `y` by the largest grid index, `MazeApp.GRID_SIZE - 1`, which is 15. `MazeApp.GRID_SIZE` is readable inside the package so `State` can use it.
+- Reason: raw coordinates up to 15 made training steps overshoot their targets. A scratchpad comparison of 200 networks trained for 20 steps toward a target of 10 at learning rate 0.01 found 10 overshooting with raw coordinates and none with scaled coordinates.
+- Alternatives not taken: lowering the learning rate to 0.001, which also stopped the overshoot but trained more slowly, and Huber loss, which stops runaway steps but barely moves toward a large reward in 20 steps.
+- Consequence: `tools/TrainingDirectionProbe.java` checks direction at the agent's learning rate of 0.01 and reports 0.1. `tools/CompileFixProbe.java` expects the input `{1/15, 1/15, 0, 0, 1, 0}` for column 1 row 1 EAST.
+
 ## Known bugs
 
 Entries marked (unverified) come from reading the code. The others were confirmed by running it.
 
 ### Training
 
-- At the agent's learning rate of 0.01, training steps can jump past their target. `tools/TrainingDirectionProbe.java` reports this at 0.01 and 0.1 without failing. In its latest run, 9 of 200 networks at 0.01 and 54 of 200 at 0.1 ended farther from a target of 10 after 20 steps, and every one had crossed the target. At 0.001, none did. The unscaled coordinate inputs probably make the steps larger. (cause unverified)
+- The goal reward of 5000 makes squared-error training run away. In a scratchpad run of 200 networks trained for 20 steps toward a target of 5000 at learning rate 0.01, 163 overshot with raw coordinates and 103 overshot with scaled coordinates. No probe in `tools/` covers this yet.
 
 ### Policy and rewards
 
@@ -119,6 +126,5 @@ Entries marked (unverified) come from reading the code. The others were confirme
 ## Open questions
 
 - Should the network be Q(s) or Q(s,a)? The input includes the action, and the output holds one value per action. A Q(s) design would drop the action from the input and remove `Action.convertToInput()`.
-- Should coordinates be scaled before they enter the network? `State.convertToInput` passes raw values from 0 to 15.
 - Is the epsilon decay rate intended? At 0.999 every 20 moves, epsilon needs about 46,000 valid moves to fall from 1.0 to 0.1.
-- What should a normal step and a dead end be worth in `Agent.calculateReward`?
+- What should the goal, a normal step and a dead end be worth in `Agent.calculateReward`? The goal reward of 5000 makes training run away (see Known bugs), so smaller rewards may be needed.

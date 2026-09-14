@@ -53,10 +53,11 @@ public class CompileFixProbe {
         check("NORTH encoding is {1, 0, 0, 0}",
                 north[0] == 1.0 && north[1] == 0.0 && north[2] == 0.0 && north[3] == 0.0);
 
+        // The maze is 16 by 16, so the largest column and row index is 15. Coordinates are scaled by it.
         double[] input = start.convertToInput(Action.EAST);
-        check("State input for column 1 row 1 EAST is {1, 1, 0, 0, 1, 0}",
+        check("State input for column 1 row 1 EAST is {1/15, 1/15, 0, 0, 1, 0}",
                 input.length == 6
-                && input[0] == 1.0 && input[1] == 1.0
+                && Math.abs(input[0] - 1.0 / 15.0) < 1e-12 && Math.abs(input[1] - 1.0 / 15.0) < 1e-12
                 && input[2] == 0.0 && input[3] == 0.0
                 && input[4] == 1.0 && input[5] == 0.0);
 

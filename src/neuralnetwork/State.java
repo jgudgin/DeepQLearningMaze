@@ -88,7 +88,9 @@ public class State {
 
     //method for encoding State coordinates and Action direction values into an array
     public double[] convertToInput(Action action) {
-        double[] stateInput = new double[]{this.getX(), this.getY()};
+        // TODO comment needed: why coordinates are divided by the largest grid index, since raw coordinates up to 15 made training steps overshoot their targets
+        double largestIndex = MazeApp.GRID_SIZE - 1;
+        double[] stateInput = new double[]{this.getX() / largestIndex, this.getY() / largestIndex};
         double[] actionInput = action.convertToInput();
 
         double[] combinedInput = new double[stateInput.length + actionInput.length];

@@ -12,7 +12,8 @@ import java.util.logging.Logger;
 // Class for generating a maze
 public class MazeApp {
 
-    private static final int GRID_SIZE = 16; // grid size
+    // TODO comment needed: why GRID_SIZE is readable inside the package, since State.convertToInput scales coordinates by the largest grid index
+    static final int GRID_SIZE = 16; // grid size
     private static final int CELL_SIZE = 30; //pixel size for each cell
     private int[][] maze; //maze is 2D array
     private JPanel gridPanel; //panel containing the grid
