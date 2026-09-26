@@ -24,7 +24,7 @@ public class Agent {
     int[] hiddenSizes = {10, 5};    //amount of neurons in each hidden layer
     // TODO comment needed: why the learning rate is 0.01, since it is now only the gradient step size, and 0.01 keeps the step size training used before alpha stopped being applied twice
     double learningRate = 0.01;  //weight that new information has on known information
-    double discountFactor = 0.9;    //reduces reward after each time step
+    double discountFactor = 0.99;    //reduces reward after each time step
     double epsilon = 1.0;   //exporation rate
     double minEpsilon = 0.1;    //minimum exploration rate
     double decayRate = 0.995;   //decay rate of epsilon after certain amount of moves
