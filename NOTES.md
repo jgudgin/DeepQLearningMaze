@@ -91,6 +91,10 @@
 
 ## Known bugs
 
+- (unverified) The goal is worth 5000, a normal step is worth -10, and a dead end actually scores slightly better than a normal step. The huge goal value makes training overshoot, and the dead end teaches the opposite of what im trying to achieve.
+
+- (unverified) The network takes the position and action as input and gives back four numbers. The agent reads the value of a move by feeding it into the network and taking the matching output. When the training is calculating the best value for the next state, it feeds in the same action that was just taken. 
+
 Entries marked (unverified) come from reading the code. The others were confirmed by running it.
 
 ### Training

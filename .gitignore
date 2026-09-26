@@ -25,3 +25,8 @@ replay_pid*
 /build/
 
 .DS_Store
+
+/nbproject/private/
+
+/dist/
+/output/

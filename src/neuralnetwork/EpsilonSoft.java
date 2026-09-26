@@ -1,8 +1,7 @@
 package neuralnetwork;
 
-import java.util.Random;
 import java.util.List;
-import java.lang.Math;
+import java.util.Random;
 
 //epsilon soft action selection policy
 public class EpsilonSoft {

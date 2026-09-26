@@ -1,7 +1,7 @@
 package neuralnetwork;
 
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 
 public class Agent {
@@ -27,7 +27,7 @@ public class Agent {
     double discountFactor = 0.9;    //reduces reward after each time step
     double epsilon = 1.0;   //exporation rate
     double minEpsilon = 0.1;    //minimum exploration rate
-    double decayRate = 0.999;   //decay rate of epsilon after certain amount of moves
+    double decayRate = 0.995;   //decay rate of epsilon after certain amount of moves
     double tau = 0.5;   //temperature parameter for softmax
 
     //amount of valid moves before epsilon is adjusted
@@ -146,30 +146,22 @@ public class Agent {
     }
 
     public double calculateReward(Action action) {
-        int[] goalPos = mazeApp.getEndPosition();
-        int currentX = currentState.getX();
-        int currentY = currentState.getY();
-
-        //calculate current Manhattan distance to the goal
-        int currentDistance = Math.abs(currentX - goalPos[0]) + Math.abs(currentY - goalPos[1]);
+        double deadendPenalty = 0;
 
         //high reward for reaching the goal
         if (isAtGoal(currentState)) {
-            return 5000; // High reward for reaching the goal
+            return 1; // High reward for reaching the goal
         }
 
         //if the agent is at a dead end then deduct points
         if (currentState.countBlockedDirections() == 3) {
-            return 1.0 / (currentDistance + 1) * 2;
+            deadendPenalty = -0.05;
         }
 
-        //intermediate reward based on distance
-        double distanceReward = 1.0 / (currentDistance + 1); //reward increases as distance decreases
-
         //small penalty for each action taken
-        double stepPenalty = -10;
+        double stepPenalty = -0.01;
 
-        return distanceReward + stepPenalty;
+        return stepPenalty + deadendPenalty;
     }
 
     public void setTotalReward(int totalReward){
